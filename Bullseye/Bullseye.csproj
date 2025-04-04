@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+        <PublishAot>true</PublishAot>
+        <AssemblyName>d3d9</AssemblyName>
+        <!-- Trimming warnings -->
+        <NoWarn>$(NoWarn);IL2091;IL3002</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Reloaded.Hooks" Version="4.3.0"/>
+        <PackageReference Include="Reloaded.Memory.Sigscan" Version="3.1.6"/>
+    </ItemGroup>
+</Project>
