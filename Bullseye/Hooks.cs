@@ -1,4 +1,4 @@
-﻿using Bullseye.Native;
+﻿using Bullseye.Util;
 using Reloaded.Hooks.Definitions.X86;
 
 namespace Bullseye;

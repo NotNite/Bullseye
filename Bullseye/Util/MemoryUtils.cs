@@ -1,12 +1,16 @@
 ﻿using System.Runtime.InteropServices;
+using Windows.Win32;
+using Windows.Win32.System.Memory;
 
-namespace Bullseye.Native;
+namespace Bullseye.Util;
 
-public static class MemoryUtils {
+public static unsafe class MemoryUtils {
     public static void Unprotect(nint memoryAddress, int size, Action action) {
-        WinApi.VirtualProtect(memoryAddress, size, 0x40, out var oldProtect);
+        PInvoke.VirtualProtect((void*) memoryAddress, (nuint) size,
+            PAGE_PROTECTION_FLAGS.PAGE_EXECUTE_READWRITE,
+            out var oldProtect);
         action();
-        WinApi.VirtualProtect(memoryAddress, size, oldProtect, out _);
+        PInvoke.VirtualProtect((void*) memoryAddress, (nuint) size, oldProtect, out _);
     }
 
     public static byte[] ReadRaw(nint memoryAddress, int length) {

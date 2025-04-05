@@ -1,0 +1,6 @@
+AllocConsole
+AttachConsole
+Direct3DCreate9
+MessageBoxW
+VirtualProtect
+ATTACH_PARENT_PROCESS

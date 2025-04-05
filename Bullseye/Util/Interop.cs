@@ -5,14 +5,14 @@ using Reloaded.Hooks;
 using Reloaded.Hooks.Definitions;
 using Reloaded.Memory.Sigscan;
 
-namespace Bullseye.Native;
+namespace Bullseye.Util;
 
 public class Interop : IDisposable {
     public nint BaseAddress { get; private init; }
     private readonly Process process;
     private readonly Scanner scanner;
 
-    private List<TrackedHook> tracked = new();
+    private readonly List<TrackedHook> tracked = [];
 
     public Interop() {
         this.process = Process.GetCurrentProcess();
@@ -23,6 +23,7 @@ public class Interop : IDisposable {
     public void Dispose() {
         this.tracked.ForEach(x => x.Dispose());
         this.tracked.Clear();
+        GC.SuppressFinalize(this);
     }
 
     public nint ScanText(string[] text) {
@@ -35,7 +36,7 @@ public class Interop : IDisposable {
 
             var offset = this.process.MainModule!.BaseAddress + pattern.Offset;
             var firstByte = Marshal.ReadByte(offset);
-            return firstByte is 0xE8 or 0xE9 ? this.ResolveJmpCall(offset) : offset;
+            return firstByte is 0xE8 or 0xE9 ? ResolveJmpCall(offset) : offset;
         }
 
         throw new Exception("Failed to match any signatures");
@@ -59,7 +60,7 @@ public class Interop : IDisposable {
         throw new Exception("Failed to resolve static address from signature");
     }
 
-    private nint ResolveJmpCall(nint address) {
+    private static nint ResolveJmpCall(nint address) {
         var offset = Marshal.ReadInt32(address + 1);
         return address + 5 + offset;
     }
@@ -113,6 +114,7 @@ public abstract class TrackedHook(nint addr, byte[] originalBytes) : ITrackedHoo
     public virtual void Dispose() {
         MemoryUtils.Unprotect(this.Address, this.OriginalBytes.Length,
             () => MemoryUtils.WriteRaw(this.Address, this.OriginalBytes));
+        GC.SuppressFinalize(this);
     }
 
     public abstract void Enable();
@@ -146,5 +148,6 @@ public class TrackedHook<T>(nint addr, byte[] originalBytes, IHook<T> hook)
     public override void Dispose() {
         this.Disable();
         base.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

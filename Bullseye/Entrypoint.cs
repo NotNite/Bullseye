@@ -1,34 +1,36 @@
 ﻿using System.Reflection;
 using System.Runtime.InteropServices;
-using Bullseye.Native;
+using Windows.Win32;
+using Windows.Win32.Graphics.Direct3D9;
+using Bullseye.Util;
+using Serilog;
 
 namespace Bullseye;
 
 public static class Entrypoint {
-    public static readonly string Version = Assembly.GetExecutingAssembly().GetName().Version!.ToString();
-
     private const uint DllProcessDetach = 0;
     private const uint DllProcessAttach = 1;
 
+    private static readonly Config Config = Config.Load();
     private static Bullseye? Instance;
     private static bool InitCalled;
 
     [UnmanagedCallersOnly(EntryPoint = "Direct3DCreate9")]
-    private static nint Direct3DCreate9(uint version) {
+    private static unsafe IDirect3D9* Direct3DCreate9(uint version) {
         // Game calls Direct3DCreate9 twice for some reason?
         // Use a separate bool in case the instance fails to load
         if (!InitCalled) {
             InitCalled = true;
 
             try {
-                Instance = new Bullseye();
+                Log.Information("Initializing...");
+                Instance = new Bullseye(Config);
             } catch (Exception e) {
-                Console.WriteLine(e);
-                WinApi.MessageBoxW(nint.Zero, $"Failed to load:\n{e}", "Bullseye", 0);
+                Utils.ErrorWithMessageBox(e, "Failed to load (Direct3DCreate9)");
             }
         }
 
-        return WinApi.Direct3DCreate9(version);
+        return PInvoke.Direct3DCreate9(version);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "DllMain")]
@@ -37,21 +39,19 @@ public static class Entrypoint {
             case DllProcessAttach: {
                 try {
                     DllMainInit();
-                    Console.WriteLine($"This is Bullseye {Version}");
                 } catch (Exception e) {
-                    Console.WriteLine(e);
-                    WinApi.MessageBoxW(nint.Zero, $"Failed to early load\n:{e}", "Bullseye", 0);
+                    Utils.ErrorWithMessageBox(e, "Failed to load (DllMain)");
                 }
                 break;
             }
 
             case DllProcessDetach when reserved == 0 && Instance != null: {
                 try {
+                    Log.Information("Shutting down, goodbye!");
                     Instance.Dispose();
                     Instance = null;
                 } catch (Exception e) {
-                    Console.WriteLine(e);
-                    WinApi.MessageBoxW(nint.Zero, $"Failed to unload\n:{e}", "Bullseye", 0);
+                    Utils.ErrorWithMessageBox(e, "Failed to unload");
                 }
                 break;
             }
@@ -63,13 +63,36 @@ public static class Entrypoint {
     // Init inside DllMain, before the main instance is created
     // Be careful about loader lock
     private static void DllMainInit() {
-        WinApi.AllocConsole();
-        WinApi.AttachConsole(-1);
+        if (!Directory.Exists(Bullseye.BullseyeDirectory)) Directory.CreateDirectory(Bullseye.BullseyeDirectory);
 
-        // Fix Console
+        // DLL proxying
+        NativeLibrary.SetDllImportResolver(Bullseye.Assembly, DllImportResolver);
+
+        // Setup logger
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Is(Config.LogLevel)
+            .WriteTo.File(Path.Combine(Bullseye.BullseyeDirectory, "Bullseye.log"))
+            .WriteTo.Console()
+            .CreateLogger();
+
+        // Setup console
+        if (Config.CreateConsoleWindow) {
+            PInvoke.AllocConsole();
+            PInvoke.AttachConsole(PInvoke.ATTACH_PARENT_PROCESS);
+        }
+
         var stdout = new StreamWriter(Console.OpenStandardOutput()) {AutoFlush = true};
         Console.SetOut(stdout);
         var stderr = new StreamWriter(Console.OpenStandardError()) {AutoFlush = true};
         Console.SetError(stderr);
+
+        Log.Information("This is Bullseye {Version}, heya! - {GitHub}",
+            Bullseye.Version, Bullseye.GitHubRepository);
+    }
+
+    private static nint DllImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath) {
+        // Refuse to load our own DLL when importing DirectX 9 functions, preventing a stack overflow
+        if (libraryName == "d3d9.dll") libraryName = "C:/Windows/System32/d3d9.dll";
+        return NativeLibrary.Load(libraryName, assembly, searchPath);
     }
 }
