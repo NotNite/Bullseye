@@ -15,6 +15,8 @@ public class Config : IDisposable {
     );
 
     public LogEventLevel LogLevel = LogEventLevel.Information;
+    public VirtualKey OverlayKey = VirtualKey.VK_F1;
+    public bool EnableOverlay = true;
     public bool CreateConsoleWindow;
 
     public static Config Load() {
@@ -40,7 +42,11 @@ public class Config : IDisposable {
 
     public void Save() {
         Log.Debug("Saving config");
-        File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, JsonContext.Default.Config));
+        try {
+            File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, JsonContext.Default.Config));
+        } catch (Exception e) {
+            Log.Warning(e, "Failed to write config");
+        }
     }
 
     private void Fixup() {

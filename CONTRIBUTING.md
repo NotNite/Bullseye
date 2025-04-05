@@ -20,7 +20,11 @@ if ($tgm) {
   Stop-Process -Force $tgm
 }
 
-Copy-Item ./Bullseye/bin/Release/net9.0-windows/win-x86/publish/d3d9.dll "G:\games\steam\steamapps\common\TGM4"
+$OutDir = "./Bullseye/bin/Release/net9.0-windows/win-x86/publish"
+$TGMDir = "G:/games/steam/steamapps/common/TGM4"
+Copy-Item "$OutDir/d3d9.dll" "$TGMDir/d3d9.dll"
+Copy-Item "$OutDir/d3d9.pdb" "$TGMDir/d3d9.pdb"
+
 explorer steam://run/3328480
 ```
 

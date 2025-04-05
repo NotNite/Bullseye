@@ -3,6 +3,8 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
 using Serilog;
+using Hexa.NET.ImGui.Backends.D3D9;
+using IDirect3DDevice9 = Windows.Win32.Graphics.Direct3D9.IDirect3DDevice9;
 
 namespace Bullseye.Util;
 
@@ -29,5 +31,9 @@ public class Utils {
                 UseShellExecute = true
             });
         }
+    }
+
+    public static unsafe IDirect3DDevice9Ptr ToHexaDevice(IDirect3DDevice9* device) {
+        return new IDirect3DDevice9Ptr((Hexa.NET.ImGui.Backends.D3D9.IDirect3DDevice9*) device);
     }
 }

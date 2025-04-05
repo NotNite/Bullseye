@@ -14,23 +14,28 @@ public static class Entrypoint {
     private static readonly Config Config = Config.Load();
     private static Bullseye? Instance;
     private static bool InitCalled;
+    private static bool AttemptedInit;
 
     [UnmanagedCallersOnly(EntryPoint = "Direct3DCreate9")]
     private static unsafe IDirect3D9* Direct3DCreate9(uint version) {
+        var d3d = PInvoke.Direct3DCreate9(version);
+
         // Game calls Direct3DCreate9 twice for some reason?
-        // Use a separate bool in case the instance fails to load
         if (!InitCalled) {
             InitCalled = true;
+        } else if (!AttemptedInit) {
+            // Use a separate bool in case the instance fails to load
+            AttemptedInit = true;
 
             try {
                 Log.Information("Initializing...");
-                Instance = new Bullseye(Config);
+                Instance = new Bullseye(Config, d3d);
             } catch (Exception e) {
                 Utils.ErrorWithMessageBox(e, "Failed to load (Direct3DCreate9)");
             }
         }
 
-        return PInvoke.Direct3DCreate9(version);
+        return d3d;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "DllMain")]
